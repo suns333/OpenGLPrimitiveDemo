@@ -37,7 +37,7 @@
 GLShaderManager		shaderManager;
 GLMatrixStack		modelViewMatrix;
 GLMatrixStack		projectionMatrix;
-GLFrame				cameraFrame;
+//GLFrame				cameraFrame;
 GLFrame             objectFrame;
 //投影矩阵
 GLFrustum			viewFrustum;
@@ -75,12 +75,14 @@ void SetupRC()
     //为了让效果明显，将观察者坐标位置Z移动往屏幕里移动15个单位位置
     // 参数：表示离屏幕之间的距离。 负数，是往屏幕后面移动；正数，往屏幕前面移动
     //GLFrame类型，表示camera
-    cameraFrame.MoveForward(-15.0f);
+    //朝向物体的方向为z正向
+    objectFrame.MoveForward(30.0f);
+//    cameraFrame.MoveForward(-15.0f);
     
     GLfloat vCoast[9] = {
-        3,3,0,
+        -3,3,0,
         0,3,0,
-        3,0,0
+        -3,0,0
     };
     pointBatch.Begin(GL_POINTS, 3);
     pointBatch.CopyVertexData3f(vCoast);
@@ -173,17 +175,56 @@ void SetupRC()
     
     // 结束扇形 前面一共绘制7个顶点（包括圆心）
     //添加闭合的终点
-    //课程添加演示：屏蔽177-180行代码，并把绘制节点改为7.则三角形扇形是无法闭合的。
     nVerts++;
-    vPoints[nVerts][0] = 2*r;
+    vPoints[nVerts][0] = r;
     vPoints[nVerts][1] = 0;
     vPoints[nVerts][2] = 0.0f;
-    
+//
     // 加载！
     //GL_TRIANGLE_FAN 以一个圆心为中心呈扇形排列，共用相邻顶点的一组三角形
     triangleFanBatch.Begin(GL_TRIANGLE_FAN, 8);
     triangleFanBatch.CopyVertexData3f(vPoints);
     triangleFanBatch.End();
+    
+    //三角形条带，一个小环或圆柱段
+    //顶点下标
+    int iCounter = 0;
+    //半径
+    GLfloat radius = 3.0f;
+    //从0度~360度，以0.3弧度为步长
+    for(GLfloat angle = 0.0f; angle <= (2.0f*M3D_PI); angle += 0.3f)
+    {
+        //或许圆形的顶点的X,Y
+        GLfloat y = radius * sin(angle);
+        GLfloat x = radius * cos(angle);
+        
+        //绘制2个三角形（他们的x,y顶点一样，只是z点不一样）
+        vPoints[iCounter][0] = x;
+        vPoints[iCounter][1] = y;
+        vPoints[iCounter][2] = -0.5;
+        iCounter++;
+        
+        vPoints[iCounter][0] = x;
+        vPoints[iCounter][1] = y;
+        vPoints[iCounter][2] = 0.5;
+        iCounter++;
+    }
+    // 关闭循环
+    printf("三角形带的顶点数：%d\n",iCounter);
+    //结束循环，在循环位置生成2个三角形
+    vPoints[iCounter][0] = vPoints[0][0];
+    vPoints[iCounter][1] = vPoints[0][1];
+    vPoints[iCounter][2] = -0.5;
+    iCounter++;
+    
+    vPoints[iCounter][0] = vPoints[1][0];
+    vPoints[iCounter][1] = vPoints[1][1];
+    vPoints[iCounter][2] = 0.5;
+    iCounter++;
+    // GL_TRIANGLE_STRIP 共用一个条带（strip）上的顶点的一组三角形
+    triangleStripBatch.Begin(GL_TRIANGLE_STRIP, iCounter);
+    triangleStripBatch.CopyVertexData3f(vPoints);
+    triangleStripBatch.End();
 }
 
 
@@ -232,15 +273,16 @@ void RenderScene(void)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     //模型视图矩阵堆栈
-    modelViewMatrix.PushMatrix();
+    modelViewMatrix.PushMatrix(objectFrame);
     
-    M3DMatrix44f mCamera;
-    cameraFrame.GetCameraMatrix(mCamera);
-    modelViewMatrix.MultMatrix(mCamera);
+//    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+//    M3DMatrix44f mCamera;
+//    cameraFrame.GetCameraMatrix(mCamera);
+//    modelViewMatrix.MultMatrix(mCamera);
     
-    M3DMatrix44f mObjectFrame;
-    objectFrame.GetMatrix(mObjectFrame);
-    modelViewMatrix.MultMatrix(mObjectFrame);
+//    M3DMatrix44f mObjectFrame;
+//    objectFrame.GetMatrix(mObjectFrame);
+//    modelViewMatrix.MultMatrix(mObjectFrame);
     
     shaderManager.UseStockShader(GLT_SHADER_FLAT, transformPipeline.GetModelViewProjectionMatrix(), vBlack);
     
@@ -271,6 +313,10 @@ void RenderScene(void)
             break;
         case 5:
             DrawWireFramedBatch(&triangleFanBatch);
+            break;
+        case 6:
+            DrawWireFramedBatch(&triangleStripBatch);
+            break;
         default:
             break;
     }
